@@ -29,6 +29,18 @@ function islandora_ontologies_ingest__ontologies_ds_composite_datastream(Abstrac
 	$ds_composite_datastream->setContentFromFile("$module_path/xml/islandora_ontologies_ds_composite_model.xml", FALSE);
 	$islandora_object->ingestDatastream($ds_composite_datastream);
 }
+
+
+function islandora_ontologies_ingest__class_ds_composite_datastream(AbstractObject $islandora_object) {
+	$module_path = drupal_get_path('module', 'islandora_ontologies');
+
+	$ds_composite_datastream = $islandora_object->constructDatastream('DS-COMPOSITE-MODEL', 'X');
+	$ds_composite_datastream->label = 'DS-COMPOSITE-MODEL';
+	$ds_composite_datastream->mimetype = 'text/xml';
+	$ds_composite_datastream->setContentFromFile("$module_path/xml/islandora_class_ds_composite_model.xml", FALSE);
+	$islandora_object->ingestDatastream($ds_composite_datastream);
+}
+
 /**
 * This function will read the ONTOLOGY Stream from an object and add relations to matching CMODEL objects PIDS to owl:classes
 * Work in progress...not used nor implemented

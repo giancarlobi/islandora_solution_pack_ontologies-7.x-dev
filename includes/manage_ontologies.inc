@@ -26,26 +26,58 @@ function islandora_ontologies_parsed_vocabulary_view_form(array $form, array &$f
 		exit;
 	}
 	$existing_content_models = islandora_get_content_models();
+
+//	----------
+	drupal_set_message(t("Fedora Ontoloy object have an ONTOLOGY stream."));
+//	print_r($existing_content_models);
+//  ----------
+
  
 	$PID=$islandora_object->id;
 	
 	$fedora_url = variable_get('islandora_base_url', 'http://localhost:8080/fedora');
 	$xmlfilelink = $fedora_url."/objects/".$PID."/datastreams/ONTOLOGY/content";
+	
+//	----------
+	drupal_set_message(t("xmlfilelink ".$xmlfilelink));
+//  ----------	
+
 	$graph = new Graphite();
-	$graph->load($xmlfilelink);
+	$result_load = $graph->load($xmlfilelink);
+	
+//	----------
+	drupal_set_message(t("result_load: ".$result_load));
+//  ----------	
+
+	
 	$existing_classes=array();
 	foreach($graph->allOfType('owl:Class') as $resource_list)
 	{
-		$parts = ARC2::splitURI($resource_list->uri);//We need don´t need in our keys the info:fedora part, but we must check if it´s there
+
+//	----------
+	drupal_set_message(t("Class: ".$resource_list->uri));
+//  ----------
+
+/**		$parts = ARC2::splitURI($resource_list->uri);//We need don´t need in our keys the info:fedora part, but we must check if it´s there
 		if ($parts[0]!='info:fedora/')
 			{
 			continue;	
 			}
-		$existing_classes[$parts[1]]=$resource_list->uri;
+*/
+
+//		$existing_classes[$parts[1]]=$resource_list->uri;
 		//@TODO check if ontology is correct before adding associate option? This would be almost a reasoner. Not sure if neccesary.
-		
+
+		$existing_classes[$resource_list->uri]=$resource_list->uri;
+				
 	}
 	$rows = array();
+
+//	----------
+print_r($existing_classes);
+	drupal_set_message(t("ONTOLOGY classes parsed."));
+//  ----------
+
 	
 	$matchedcontenmodels=array();
 	$matchedcontenmodels=array_intersect_key($existing_content_models,$existing_classes);//Here we get those owl classes that are present as content models in our repository

@@ -200,6 +200,17 @@ function islandora_ontologies_islandora_required_objects(IslandoraTuque $connect
   // DS-COMPOSITE-MODEL Datastream.
   islandora_ontologies_ingest__ontologies_ds_composite_datastream($ontologies_content_model);
   
+  
+  // class Content Model , we will use this as additional content model for every other model in this module
+  $class_content_model = $connection->repository->constructObject('ontologies:classCModel');
+  $class_content_model->owner = 'fedoraAdmin';
+  $class_content_model->label = 'Class Content Model';
+  $class_content_model->models = 'fedora-system:ContentModel-3.0';
+  // DS-COMPOSITE-MODEL Datastream.
+  islandora_ontologies_ingest__class_ds_composite_datastream($ontologies_content_model);  
+  
+  
+  
   // ontologies Collection.
   $ontologies_collection = $connection->repository->constructObject('ontologies:ontologies_collection');
   $ontologies_collection->owner = 'fedoraAdmin';
@@ -223,6 +234,7 @@ function islandora_ontologies_islandora_required_objects(IslandoraTuque $connect
       'title' => 'Islandora Ontologies',
       'objects' => array(
 		$ontologies_content_model,
+		$class_content_model,
         $ontologies_collection,
       ),
     ),
