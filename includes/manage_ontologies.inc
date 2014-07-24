@@ -14,9 +14,7 @@ include_once($module_path.'/Graphite/Graphite.php');
 
 function islandora_ontologies_parsed_vocabulary_view_form(array $form, array &$form_state, $islandora_object_pid){
 	module_load_include('inc', 'islandora', 'includes/utilities');
-	
-	
-	
+
 	$islandora_object = islandora_object_load($islandora_object_pid);
 	$datastream = $islandora_object['ONTOLOGY'];
 	if (!$datastream)
@@ -25,99 +23,54 @@ function islandora_ontologies_parsed_vocabulary_view_form(array $form, array &$f
 		drupal_not_found();
 		exit;
 	}
-	$existing_content_models = islandora_get_content_models();
+//	$existing_content_models = islandora_get_content_models();
 
-//	----------
-	drupal_set_message(t("Fedora Ontoloy object have an ONTOLOGY stream."));
-//	print_r($existing_content_models);
-//  ----------
-
- 
 	$PID=$islandora_object->id;
-	
 	$fedora_url = variable_get('islandora_base_url', 'http://localhost:8080/fedora');
 	$xmlfilelink = $fedora_url."/objects/".$PID."/datastreams/ONTOLOGY/content";
-	
-//	----------
-	drupal_set_message(t("xmlfilelink ".$xmlfilelink));
-//  ----------	
-
 	$graph = new Graphite();
 	$result_load = $graph->load($xmlfilelink);
-	
-//	----------
-	drupal_set_message(t("result_load: ".$result_load));
-//  ----------	
-
-	
-	$existing_classes=array();
+	if (!$result_load)
+	{
+		drupal_set_message(t("ONTOLOGY empty."));
+		drupal_not_found();
+		exit;
+	}
+	$defined_classes=array();
 	foreach($graph->allOfType('owl:Class') as $resource_list)
 	{
-
-//	----------
-	drupal_set_message(t("Class: ".$resource_list->uri));
-//  ----------
-
-/**		$parts = ARC2::splitURI($resource_list->uri);//We need don´t need in our keys the info:fedora part, but we must check if it´s there
-		if ($parts[0]!='info:fedora/')
-			{
-			continue;	
-			}
-*/
-
-//		$existing_classes[$parts[1]]=$resource_list->uri;
-		//@TODO check if ontology is correct before adding associate option? This would be almost a reasoner. Not sure if neccesary.
-
-		$existing_classes[$resource_list->uri]=$resource_list->uri;
-				
+		$defined_classes[$resource_list->uri]=$resource_list->uri;
 	}
 	$rows = array();
-
-//	----------
-print_r($existing_classes);
-	drupal_set_message(t("ONTOLOGY classes parsed."));
-//  ----------
-
 	
-	$matchedcontenmodels=array();
-	$matchedcontenmodels=array_intersect_key($existing_content_models,$existing_classes);//Here we get those owl classes that are present as content models in our repository
-	foreach ($matchedcontenmodels as $contentmodelpid => $content_model) {
-		try {
-			$contentmodel_object=islandora_object_load($contentmodelpid);
-		}
-		catch (Exception $e) {
-			continue;
-		}
+	$classObjects = islandora_ontology_object_get_classes($PID);
+	
+	foreach ($defined_classes as $defined_class) {
+
+		if (array_key_exists($defined_class,$classObjects)) {
+
+			$class_object_pid=$classObjects[$defined_class];
+			$existingassociation=1;
+			$label = $defined_class;
+		} else {
+			$class_object_pid="-";
+			$existingassociation=0;
+			$label = $defined_class;	
+		}			
 		
-		if ($contentmodel_object)
-		{   
-			$label = $contentmodel_object['label'];
-			
-			$rels = $contentmodel_object->relationships->get(ISLANDORA_RELS_EXT_URI,'hasLocalOntology',$PID,RELS_TYPE_URI);//We get a haslocalOntology relation for this ontologyPID
-			//print_r($rels);
-			$existingassociation=count($rels)>0?1:0;
-			$rows[$contentmodelpid] = array(
-				'selected' => array(
-					'#type' => 'checkbox',
-					'#default_value' => $existingassociation,
-				),
-				'title' => array(
-					'#markup' => l(t('@label (@pid)', array('@label' => $label, '@pid' => $contentmodelpid)), "islandora/object/{$contentmodelpid}"),
-				),
-				'allowed_relations' => array(
-				        '#markup' => t('hola'),
-					),	
-			);
-		}
-		
-  
-  
-  
-  
+		$rows[$defined_class] = array(
+			'selected' => array(
+				'#type' => 'checkbox',
+				'#default_value' => $existingassociation,
+			),
+			'title' => array(
+				'#markup' => l(t('@label', array('@label' => $label)), "islandora/object/{$class_object_pid}"),
+			),
+			'allowed_relations' => array(
+				'#markup' => l(t('@pid', array('@pid' => $class_object_pid)), "islandora/object/{$class_object_pid}"),
+				),	
+		);
 	}
-	//print_r($rows);
-		
-	//$form['#action'] = request_uri() . '#association_management';
 	$form['help'] = array(
 			'#type' => 'item',
 			'#markup' => l(t('About Ontology'), '', array()),
@@ -125,7 +78,7 @@ print_r($existing_classes);
 	$form['table'] = array(
 			'#tree' => TRUE,
 			'#header' => array(
-				array('class' => array('select-all')), t('PID'), 'Namespace',
+				array('class' => array('select-all')), t('Class'), 'PID',
 			),
 			'#theme' => 'islandora_ontologies_ontology_management_table',
 			'rows' => $rows,
@@ -135,9 +88,6 @@ print_r($existing_classes);
 			'#type' => 'submit',
 			'#value' => t('Update Ontology Content Models associations'),
 		);
-				
-	
- 
 	$form_state['ontologyobject_pid'] =$PID;
 	return $form;
  
@@ -169,7 +119,7 @@ print_r($existing_classes);
 
 /**
  * Submit handler for ontology content models association management form.
- *
+ *islandora_ontology_object_get_classes
  * @param array $form
  *   The Drupal form definition.
  * @param array $form_state
@@ -291,4 +241,45 @@ function islandora_ontologies_manage_relations_form(array $form_state, AbstractO
 	  );
 	  return $form_state;
 	}	
+
+	
+/**
+* Return an array of pids that are class of a ontology object.
+*/
+function islandora_ontology_object_get_classes($pid) {
+//  $rels_predicate = variable_get('islandora_compound_object_relationship', 'isConstituentOf');
+	$rels_predicate = 'isConstituentOf';
+
+  $objects = array();
+
+  $connection = islandora_get_tuque_connection();
+  $escaped_pid = str_replace(':', '_', $pid);
+  if ($connection) {
+    $query = <<<EOQ
+PREFIX islandora-rels-ext: <http://islandora.ca/ontology/relsext#>
+SELECT ?object ?title
+FROM <#ri>
+WHERE {
+  ?object <fedora-model:label> ?title ;
+          <fedora-rels-ext:$rels_predicate> <info:fedora/$pid> .
+
+}
+EOQ;
+    $results = $connection->repository->ri->sparqlQuery($query);
+
+    foreach ($results as $result) {
+      $object = islandora_object_load($result['object']['value']);
+      if (islandora_object_access(ISLANDORA_VIEW_OBJECTS, $object)) {
+        $objects[$result['title']['value']] = $result['object']['value'];
+      }
+    }
+  }
+
+  return $objects;
+}
+
+	
+	
+	
+	
 	

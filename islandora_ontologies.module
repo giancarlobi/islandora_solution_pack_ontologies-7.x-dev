@@ -19,8 +19,8 @@ function islandora_ontologies_menu() {
   );*/
    $items['islandora/object/%islandora_object/parsedontology'] = array(
        'weight' => 4,
-       'title' => t('Ontology Association'),
-	   'description' => t('Manage Ontology association to Content Models'),
+       'title' => t('Class Objects'),
+	   'description' => t('Manage Class association to Class object'),
 	   'file' => 'includes/manage_ontologies.inc',
 	   'page callback' => 'drupal_get_form',
        'page arguments' => array('islandora_ontologies_parsed_vocabulary_view_form',2),
