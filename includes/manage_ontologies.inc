@@ -1,14 +1,14 @@
 <?php
 /*
 * @file
-* Holds  functions to manage ontologies to contentmodels relations for islandora_ontologies.
+* Holds  functions to manage ontologies and class objects for islandora_ontologies.
 */
 $module_path = drupal_get_path('module', 'islandora_ontologies');
 include_once($module_path.'/arc2/ARC2.php');
 include_once($module_path.'/Graphite/Graphite.php');
 
 /**
-* This function will read the ONTOLOGY Stream from an object and display a table to add relations to matching CMODEL objects PIDS to owl:classes
+* This function will read the ONTOLOGY Stream from an object and display a table to add class objects to matching owl:classes
 *
 */
 
@@ -63,12 +63,18 @@ function islandora_ontologies_parsed_vocabulary_view_form(array $form, array &$f
 				'#type' => 'checkbox',
 				'#default_value' => $existingassociation,
 			),
-			'title' => array(
+			'class_label' => array(
 				'#markup' => l(t('@label', array('@label' => $label)), "islandora/object/{$class_object_pid}"),
 			),
-			'allowed_relations' => array(
+			'classpid' => array(
+				'#type' => 'textfield',
+				'#default_value' => $class_object_pid,
+				'#disabled' => TRUE,
+				'#size' => 20,
+			),			
+/*			'pid' => array(
 				'#markup' => l(t('@pid', array('@pid' => $class_object_pid)), "islandora/object/{$class_object_pid}"),
-				),	
+				),	*/
 		);
 	}
 	$form['help'] = array(
@@ -86,7 +92,7 @@ function islandora_ontologies_parsed_vocabulary_view_form(array $form, array &$f
 		
 	$form['submit'] = array(
 			'#type' => 'submit',
-			'#value' => t('Update Ontology Content Models associations'),
+			'#value' => t('Update Class objects'),
 		);
 	$form_state['ontologyobject_pid'] =$PID;
 	return $form;
@@ -128,9 +134,67 @@ function islandora_ontologies_parsed_vocabulary_view_form(array $form, array &$f
 
 
 function islandora_ontologies_parsed_vocabulary_view_form_submit(array $form, array &$form_state){	
+	
+// Parse table:
+// case 1: flag and PID = class object exists, nothing to do
+// case 2: !flag and !PID = nothing to do
+// case 3: flag and !PID = class object doesn't exist, class object to ingest
+// case 4: !flag and PID = class object exists, class object to remove if no relationships
+
+	$ontologyobject_pid=$form_state['ontologyobject_pid'];
+
+	$classes = $form_state['values']['table']['rows'];
+	while ($defclass = current($classes)) {
+		
+		if (($defclass['selected']) AND ($defclass['classpid'] == '-')) {
+
+			echo key($classes).' : '.$defclass['selected'].' - '.$defclass['classpid'].' ingest new object <br />';
+			
+			$connection = islandora_get_tuque_connection();
+			if ($connection) {
+
+  				$class_object = $connection->repository->constructObject('ontologies');
+  				$class_object->owner = 'fedoraAdmin';
+  				$class_object->label = key($classes);
+  				$class_object->models = 'ontologies:classCModel';
+  				$class_object->relationships->add(FEDORA_RELS_EXT_URI, 'isConstituentOf', $ontologyobject_pid);
+				if ($connection->repository->ingestObject($class_object)) {
+					drupal_set_message(t("Class object ".key($classes)." ingested."));
+				} else {
+					drupal_set_message(t("Class object ".key($classes)." ingesting error."),'error');
+				}
+				
+			} else {
+				drupal_set_message(t("Class object ".key($classes)." ingesting error."),'error');
+			}
+
+		} elseif ((!$defclass['selected']) AND ($defclass['classpid'] != '-')) {
+
+			echo key($classes).' : '.$defclass['selected'].' - '.$defclass['classpid'].' remove object <br />';
+			$members = islandora_ontology_class_object_members($defclass['classpid']);
+			if (count($members)){
+				drupal_set_message(t("Class object ".key($classes)." still has ".count($members)." relationships."),'error');
+			} else {
+				$connection = islandora_get_tuque_connection();
+				if ($connection) {
+					if ($connection->repository->purgeObject($defclass['classpid'])) {
+						drupal_set_message(t("Class object ".key($classes)." purged."));
+					} else {
+						drupal_set_message(t("Class object ".key($classes)." purging error."),'error');
+					}
+				} else {
+					drupal_set_message(t("Class object ".key($classes)." purging error."),'error');
+				}
+			}
+		}
+		next($classes);
+	}
+
+//exit;
+/*
 	$ontologyobject=islandora_object_load($form_state['ontologyobject_pid']);
 	$ontologyobject_pid=$ontologyobject->id;
-	
+
 	foreach ($form_state['values']['table']['rows'] as $pid => $properties) {
 		unset($subject);
 		unset($rels);
@@ -170,7 +234,7 @@ function islandora_ontologies_parsed_vocabulary_view_form_submit(array $form, ar
 		//$relationships->add($predicate_uri, $predicate, $object, $literal);
 		//
 		}
-	}	
+	}	*/
 	 $form_state['redirect'] = NULL; 
 	}
 	/**
@@ -244,7 +308,7 @@ function islandora_ontologies_manage_relations_form(array $form_state, AbstractO
 
 	
 /**
-* Return an array of pids that are class of a ontology object.
+* Return an array of pids that are classes of a ontology object.
 */
 function islandora_ontology_object_get_classes($pid) {
 //  $rels_predicate = variable_get('islandora_compound_object_relationship', 'isConstituentOf');
@@ -278,7 +342,29 @@ EOQ;
   return $objects;
 }
 
+/**
+* Count CMODELS isMemberOf Class Object
+*/
+function islandora_ontology_class_object_members($pid) {
+	//  $rels_predicate = variable_get('islandora_compound_object_relationship', 'isConstituentOf');
+	$rels_predicate = 'isMemberOf';
+  	
+  	$connection = islandora_get_tuque_connection();
+  	$escaped_pid = str_replace(':', '_', $pid);
+  	if ($connection) {
+    	$query = <<<EOQ
+PREFIX islandora-rels-ext: <http://islandora.ca/ontology/relsext#>
+SELECT ?object
+FROM <#ri>
+WHERE {
+  ?object <fedora-rels-ext:$rels_predicate> <info:fedora/$pid>
+}
+EOQ;
+    	$results = $connection->repository->ri->sparqlQuery($query);	
+	}
 	
+	return $results;
+}	
 	
 	
 	
