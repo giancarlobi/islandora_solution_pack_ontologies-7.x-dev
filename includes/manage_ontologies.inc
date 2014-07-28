@@ -23,7 +23,6 @@ function islandora_ontologies_parsed_vocabulary_view_form(array $form, array &$f
 		drupal_not_found();
 		exit;
 	}
-//	$existing_content_models = islandora_get_content_models();
 
 	$PID=$islandora_object->id;
 	$fedora_url = variable_get('islandora_base_url', 'http://localhost:8080/fedora');
@@ -72,9 +71,6 @@ function islandora_ontologies_parsed_vocabulary_view_form(array $form, array &$f
 				'#disabled' => TRUE,
 				'#size' => 20,
 			),			
-/*			'pid' => array(
-				'#markup' => l(t('@pid', array('@pid' => $class_object_pid)), "islandora/object/{$class_object_pid}"),
-				),	*/
 		);
 	}
 	$form['help'] = array(
@@ -96,42 +92,16 @@ function islandora_ontologies_parsed_vocabulary_view_form(array $form, array &$f
 		);
 	$form_state['ontologyobject_pid'] =$PID;
 	return $form;
- 
- 
- 
- 
-	// foreach ($content_models as $pid => $content_model) {
-    
-		//	}
-    
-		/* error_log($xmlfilelink,1);
-		$parser->parse($xmlfilelink);
-		$triples = $parser->getTriples();
-		$ns=$parser->parser->nsp;
-		$index = ARC2::getSimpleIndex($triples, false) ;
-		$triples = ARC2::getTriplesFromIndex($index);
-		//$terms = islandora_ontologies_rdfx_fetch_terms($triples);
-		//foreach ($parser->parser->nsp as $uri => $prefix) {
-		//     $namespaces[$prefix] = $uri;
-		//}
-  
-		// $vocabulary = array(
-		//    'terms' => $terms,
-		//    'namespaces' => $namespaces,
-		//);*/
- 
-		//return (array('triples'=>$triples,'ns'=>$ns,'index'=> $index));
-	}
+}
 
 /**
- * Submit handler for ontology content models association management form.
- *islandora_ontology_object_get_classes
+ * Submit handler for ontology class association management form.
+ *
  * @param array $form
  *   The Drupal form definition.
  * @param array $form_state
  *   The Drupal form state.
  */
-
 
 function islandora_ontologies_parsed_vocabulary_view_form_submit(array $form, array &$form_state){	
 	
@@ -189,54 +159,8 @@ function islandora_ontologies_parsed_vocabulary_view_form_submit(array $form, ar
 		}
 		next($classes);
 	}
-
-//exit;
-/*
-	$ontologyobject=islandora_object_load($form_state['ontologyobject_pid']);
-	$ontologyobject_pid=$ontologyobject->id;
-
-	foreach ($form_state['values']['table']['rows'] as $pid => $properties) {
-		unset($subject);
-		unset($rels);
-		
-		try {
-			$subject = islandora_object_load($pid);	
-		}
-		catch (Exception $e) {
-			continue;
-		}
-		
-		if ($subject) 
-		{  
-			
-	
-			//@TODO allow multiple haslocalOntology relations on tha same contentmodel to different ontology objects.
-		    //This means we must check if ontologies does not have the same internal predicate_uri, if so this could lead to erroneous interpretation of applied relations between objects.	
-			switch($properties['selected'])
-				{
-				case 1:	
-				//$subject->relationships->remove(ISLANDORA_RELS_EXT_URI, 'hasLocalOntology', NULL, RELS_TYPE_URI);	
-				$rels = $subject->relationships->get(ISLANDORA_RELS_EXT_URI,'hasLocalOntology',$ontologyobject_pid,RELS_TYPE_URI);//We get a haslocalOntology relation for this ontologyPID
-				$existingassociation=count($rels) > 0 ? 1 : 0;
-				if (!$existingassociation)
-					{
-					$subject->relationships->add(ISLANDORA_RELS_EXT_URI, 'hasLocalOntology', $ontologyobject_pid, RELS_TYPE_URI);
-			 		drupal_set_message(t('Ontology Class to existing Content Model @label association done', array('@label' => $subject['label'])));	
-					}
-				break;
-				default:
-				//$subject->relationships->remove(ISLANDORA_RELS_EXT_URI, 'hasLocalOntology', NULL, RELS_TYPE_URI);	 with NULL removes every relation that matches the name
-				$subject->relationships->remove(ISLANDORA_RELS_EXT_URI, 'hasLocalOntology', $ontologyobject_pid, RELS_TYPE_URI);		
-			 	drupal_set_message(t('Ontology Class association for Object @ontologyobject_pid from Content Model @label removed', array('@ontologyobject_pid'=>$ontologyobject_pid,'@label' => $subject['label'])));	
-				}
-		//First we remove any existing relation. 
-		//$subject->relationships->remove(ISLANDORA_RELS_EXT_URI, 'hasLocalOntology', NULL, RELS_TYPE_URI);
-		//$relationships->add($predicate_uri, $predicate, $object, $literal);
-		//
-		}
-	}	*/
-	 $form_state['redirect'] = NULL; 
-	}
+	$form_state['redirect'] = NULL; 
+}
 	/**
 	 * Manage Object Relations local task.
 	 *
@@ -343,7 +267,7 @@ EOQ;
 }
 
 /**
-* Count CMODELS isMemberOf Class Object
+* Extract PIDs isMemberOf Class Object
 */
 function islandora_ontology_class_object_members($pid) {
 	//  $rels_predicate = variable_get('islandora_compound_object_relationship', 'isConstituentOf');

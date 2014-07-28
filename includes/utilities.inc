@@ -78,7 +78,7 @@ function islandora_ontologies_get_delete_path($objectPid, $namespace, $relations
 *   The object to check for it´s content models and associated ontology objects.
 * @return Array $associated_ontologies
 * An array with the Ontology Object PIDS
-*/
+
 function islandora_ontologies_get_associated_ontologies(AbstractObject $islandora_object)
 {
 	$associated_ontologies=array();
@@ -119,6 +119,59 @@ function islandora_ontologies_get_associated_ontologies(AbstractObject $islandor
 		
 	return $associated_ontologies;
 }
+*/
+
+/**
+* This function reads the content models of an Object and searches if these contentmodels are associated to a Class object
+*
+* It returns the associated classes
+*
+* @param AbstractObject $islandora_object
+*   The object to check for it´s content models and associated ontology objects.
+* @return Array $associated_ontologies
+* An array with the Class Object PIDS
+*/
+function islandora_ontologies_get_associated_ontologies(AbstractObject $islandora_object)
+{
+	$associated_ontologies=array();
+	$target_object_models=$islandora_object->models;
+	
+
+	
+	foreach($target_object_models as $contentmodelpid)
+	{
+		list($namesp, $ID)=explode(":",$contentmodelpid);
+		if (($namesp!="fedora-system") AND ($namesp!="ontologies"))
+		{
+			
+			unset($ontologies);
+			unset($contentmodel_object);
+			try {
+				
+				$contentmodel_object =islandora_object_load($contentmodelpid);
+				}
+			catch (Exception $e) 
+			{
+				drupal_set_message(t("Content Model does not exist!"));
+				drupal_not_found();	
+				continue;
+			}
+			if ($contentmodel_object)
+			{
+
+				$ontologies=islandora_ontologies_get_associated_ontologies_for_cmodel($contentmodel_object);
+				
+				if (sizeof($ontologies)>0)
+					{
+					$associated_ontologies[$contentmodelpid]=$ontologies;		
+					}
+						
+				}	
+			}
+		}
+		
+	return $associated_ontologies;
+}
 /**
 * This function will read a content model Objects and search if there are associated Ontology Objects
 *
@@ -128,7 +181,7 @@ function islandora_ontologies_get_associated_ontologies(AbstractObject $islandor
 *   The object to check for it´s content models and associated ontology objects.
 * @return Array $associated_ontologies
 * An array with the Ontology Object PIDS
-*/
+*
 function islandora_ontologies_get_associated_ontologies_for_cmodel(AbstractObject $islandora_cmodel_object)
 {
 	$associated_ontology=array();
@@ -158,6 +211,50 @@ function islandora_ontologies_get_associated_ontologies_for_cmodel(AbstractObjec
 						exit;//or continue? we are getting only one for now.@todo add all of them. Must check, but all other functions are aware of multiple ontologies.
 					}
 						
+				}	
+			}	
+			
+	return $associated_ontology;
+}*/
+/**
+* This function will read a content model Objects and search if there are associated Class Objects (-> Ontology)
+*
+* If found, the class objects are returned
+*
+* @param AbstractObject $islandora_object
+*   The object to check for it´s content models and associated class objects.
+* @return Array $associated_ontologies
+* An array with all Class Object PIDS
+*/
+function islandora_ontologies_get_associated_ontologies_for_cmodel(AbstractObject $islandora_cmodel_object)
+{
+	$associated_ontology=array();
+	
+			if ($islandora_cmodel_object)
+			{
+				$rels=$islandora_cmodel_object->relationships->get('info:fedora/fedora-system:def/relations-external#','isMemberOf');	
+				
+				foreach($rels as $existingrelations)
+				{
+
+					try {
+						$class_object=islandora_object_load($existingrelations['object']['value']);
+					}
+					catch (Exception $e) 
+					{
+						continue;
+					}
+					
+					// check if it exists AND hasModel ontologies:classCModel
+					if ($class_object && in_array('ontologies:classCModel', $class_object->models))
+					{
+						$associated_ontology[$class_object->id]=$class_object->label;
+					}
+/*					else
+					{
+						exit;//or continue? we are getting only one for now.@todo add all of them. Must check, but all other functions are aware of multiple ontologies.
+					}
+*/						
 				}	
 			}	
 			
@@ -193,6 +290,7 @@ function islandora_ontologies_get_current_localrelations($subject_pid)
 	$relslocal=array_filter($rels, $not_system_rels);
 	return $relslocal;
 }
+
 /**
 * This function gets all posible relations for a Subject based on their associated Ontologie
 * @param array $subject_associated_ontologies_pids, subject + PIDs of the Ontologies
@@ -200,7 +298,7 @@ function islandora_ontologies_get_current_localrelations($subject_pid)
 * 1 Subject, multiple ontologies
 * @return Array 
 * An array with the the relations and preprocessed form options as plus.
-*/
+*
 function islandora_ontologies_get_possible_localrelations($subject,$subject_associated_ontologies_pids)
 {
 	$module_path = drupal_get_path('module', 'islandora_ontologies');
@@ -274,7 +372,150 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 	}
 	
 	return array('posiblerels_complete'=>$posiblerels_complete,'posiblerels_asformoptions'=>$posiblerels_asformoptions);
+}*/
+
+/**
+* This function gets all posible relations for a Subject based on their associated Ontologies
+* @param array $subject_associated_ontologies_pids, subject + PIDs of the Classes
+*   The object to check for it´s content models and associated ontology objects.
+* 1 Subject, multiple ontologies
+* @return Array 
+* An array with the the relations and preprocessed form options as plus.
+*/
+function islandora_ontologies_get_possible_localrelations($subject,$subject_associated_ontologies_pids)
+{
+	$module_path = drupal_get_path('module', 'islandora_ontologies');
+	include_once($module_path.'/arc2/ARC2.php');
+	include_once($module_path.'/Graphite/Graphite.php');	
+	
+	
+	$posiblerels_complete=array();
+	$posiblerels_asformoptions=array();
+	$uri_parts_inverse=array();
+	$uri_parts_inverse=array();
+	$inverse_array=array();
+	$inverseof_array=array();
+	foreach($subject_associated_ontologies_pids as $class_PID=>$class_label)
+	{
+
+		// $class_PID and $class_label of Class object
+		$PID=islandora_ontologies_get_ontology_for_class($class_PID);
+		
+		unset($ontology_object);
+		$ontology_object=islandora_object_load($PID);
+		if (!$ontology_object) {
+			drupal_set_message("Ontology object doesn't exist.");
+			drupal_not_found();
+			continue;
+		}	
+		$ontology_label=$ontology_object->label;
+		
+		$fedora_url = variable_get('islandora_base_url', 'http://localhost:8080/fedora');
+		$xmlfilelink = $fedora_url."/objects/".$PID."/datastreams/ONTOLOGY/content";
+		$graph = new Graphite();//@TODO Chek if it´s posible to combine all ontologies in one Graphite object and parse the whole thing 
+		$graph->load($xmlfilelink);
+
+//echo "HERE";
+
+		foreach($graph->allOfType('owl:ObjectProperty')->sort("rdfs:label") as $property)
+		{
+			$inverse="";
+			$inverseof="";	
+			$inverse_array=array();
+			$inverseof_array=array();
+
+			if (!$property->get("-owl:onProperty")->get("-rdfs:subClassOf")->isNull())
+			{
+				
+//				echo "property: ".$property->uri." RESTRICTED <br>";
+//				echo "=== ".$property->get("-owl:onProperty")->get("-rdfs:subClassOf")->uri."<br>";
+				
+				
+				if ($property->get("-owl:onProperty")->get("-rdfs:subClassOf")->uri == $class_label)   
+				//If this URI equals the class_label 
+				//we found a restricted $property for this class. 
+				//If it's a null node or inexistant it will give a GraphiteNull Object, no need to check for it.
+				{
+					
+				//We won´t deal with the nature of the restriction here. 
+				//We just wan´t a list of possible/defined/restricted properties for this particular class
+				$inverse=$property->get('-owl:inverseOf')->isNull() ? '' : $property->get('-owl:inverseOf')->uri;
+				$inverseof=$property->get('owl:inverseOf')->isNull() ? '' : $property->get('owl:inverseOf')->uri;
+
+				//echo "inverse: ".$inverse." ====   inverseOf: ".$inverseof."<br>";
+				
+				//we must deal with inverse and inversof differently. 
+				//If this property has an inverseof then, when the validation is made, we must invert subject/object
+				//But when we have just an inverse, it means we can give our object part from the tripple this propery without question. 
+				//assuming the ontology is well (logical)formed. 
+				$uri_parts = ARC2::splitURI($property->uri);
+				if (!empty($inverse))
+					{
+					$uri_parts_inverse=ARC2::splitURI($inverse);
+					$inverse_array=array('ns'=>$uri_parts_inverse[0],'proplocal'=>$uri_parts_inverse[1]);	
+					}
+				if (!empty($inverseof))
+						{
+						$uri_parts_inverse=ARC2::splitURI($inverseof);
+						$inverseof_array=array('ns'=>$uri_parts_inverse[0],'proplocal'=>$uri_parts_inverse[1]);	
+						}
+				//echo "uri0: ".$uri_parts[0]."    uri1: ".$uri_parts[1]."<br>";
+					
+				$posiblerels_complete[$PID][$property->uri]=array(
+					'label'=> $property->label()->isNull() ? $uri_parts[1] : $property->label()->toString(),
+					//If we don´t have a label display the short value of the property
+					'inverse'=> sizeof($inverse_array)>0?$inverse_array:'',
+					'inverseof'=> sizeof($inverseof_array)>0?$inverseof_array:'',
+					'ns'=>$uri_parts[0],//Not entirely correct. If there are namespace alias, we must check this in the outerloop.
+					'comment'=>$property->getString('rdfs:comment'),
+					'proplocal'=>$uri_parts[1],	
+					'alias'=>'',//@todo read the complete namespace from the ontology and check for namespaces alias	
+				);
+				$posiblerels_asformoptions[$ontology_label][$PID." ".$property->uri]=$posiblerels_complete[$PID][$property->uri]['label'];
+				//To avoid other loops elsewhere we process the needed form options here. 
+				//Note: our option value is composed of the PID of the ontology object and the property URL. 
+				//this way we can later discriminated from which ontology object we are going to evaluate our restrictions		
+				}
+			} else {
+//				echo "property: ".$property->uri." NOT RESTRICTED <br>";
+			}
+		}
+			
+	}
+
+//exit ;
+	
+	return array('posiblerels_complete'=>$posiblerels_complete,'posiblerels_asformoptions'=>$posiblerels_asformoptions);
 }
+
+/**
+* This function returns Ontology of a Class Object
+* @param string $class_pid, the PID of the Class Object
+* @return string $ontology_pid, the PID of the Ontology
+*/
+function islandora_ontologies_get_ontology_for_class($class_pid)
+{
+	try {
+		$class_object =islandora_object_load($class_pid);
+	}
+	catch (Exception $e) 
+	{
+		drupal_set_message(t("Content Model does not exist!"));
+		drupal_not_found();	
+		continue;
+	}
+	if ($class_object) {
+		$rels=$class_object->relationships->get('info:fedora/fedora-system:def/relations-external#','isConstituentOf');	
+// only 1 ontology per Class, if more than the first one
+		$ontology_pid=$rels[0]['object']['value'];
+	}	
+	return $ontology_pid;
+}
+
+
+
+
+
 /**
 * This function Filters existing relations and returns only those defined in the ontologies associated. This is necessary because we don´t wan´t to limit or restrict properties out of our scope.
 * @param string $subject_pid, the PID of the Object who holds relations
@@ -354,7 +595,7 @@ function islandora_ontologies_filter_existing_relations($subject, array $subject
 		
 		$relsfiltered[$PID]=array_map($content_models_for_relation,$relsfiltered[$PID]);	
 	}
-	
+
 	return $relsfiltered;
 }
 

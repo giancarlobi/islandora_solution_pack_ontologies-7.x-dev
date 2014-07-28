@@ -13,24 +13,32 @@ function islandora_ontologies_add_relationships_form(array $form, array &$form_s
 		drupal_not_found();
 		exit;	
 	}	  
-	$islandora_object_pid = $islandora_object->id;		
+	$islandora_object_pid = $islandora_object->id;
+				
 	//We don´t want to reprocess every bit every time we re-render or sumbit the form. So store the processed ontology values on form_state		
 	$select_field="";
-
 	if (!isset($form_state['islandora_ontologies']))
 	{
-		
+
+	
 		$restrictionsOnOntologies=array();
 		$posible_relastionships=array();
 		$currentrelationsfiltered=array();
 		$options_subjectCmodel=array();
 		$currentontologies= islandora_ontologies_get_associated_ontologies($islandora_object);//@see utilities.inc
 		$currentrelations=islandora_ontologies_get_current_localrelations($islandora_object_pid);//@see utilities.inc
-
+		
 		foreach($currentontologies as $subject=>$ontologies)
 		{
+		
+// $subject: islandora:sp_large_image_cmodel 
+// $ontologies: Array ( [ontologies:3] => http://aims.fao.org/aos/v1.0/c_noun ) 			
 	
 			$posible_relastionships[$subject]=islandora_ontologies_get_possible_localrelations($subject,$ontologies);
+
+print_r($posible_relastionships[$subject]);
+//exit;
+			
 			$currentrelationsfiltered[$subject]=islandora_ontologies_filter_existing_relations($subject,$ontologies,$currentrelations);	
 			foreach($ontologies as $ontology_objectpid=>$label)
 			{
