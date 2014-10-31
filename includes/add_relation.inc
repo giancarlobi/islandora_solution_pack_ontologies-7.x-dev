@@ -37,7 +37,7 @@ function islandora_ontologies_add_relationships_form(array $form, array &$form_s
 			$posible_relastionships[$subject]=islandora_ontologies_get_possible_localrelations($subject,$ontologies);
 
 print_r($posible_relastionships[$subject]);
-//exit;
+exit;
 			
 			$currentrelationsfiltered[$subject]=islandora_ontologies_filter_existing_relations($subject,$ontologies,$currentrelations);	
 			foreach($ontologies as $ontology_objectpid=>$label)

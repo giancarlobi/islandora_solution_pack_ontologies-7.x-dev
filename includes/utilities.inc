@@ -376,6 +376,10 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 
 /**
 * This function gets all posible relations for a Subject based on their associated Ontologies
+*
+* IF Property NOT in <owl:Class><rdfs:subClassOf><owl:Restriction><owl:onProperty> THEN UNRESTRICTED
+* IF Property in <owl:Class><rdfs:subClassOf><owl:Restriction><owl:onProperty> THEN RESTRICTED
+*
 * @param array $subject_associated_ontologies_pids, subject + PIDs of the Classes
 *   The object to check for it´s content models and associated ontology objects.
 * 1 Subject, multiple ontologies
@@ -427,7 +431,7 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 			if (!$property->get("-owl:onProperty")->get("-rdfs:subClassOf")->isNull())
 			{
 				
-//				echo "property: ".$property->uri." RESTRICTED <br>";
+				echo "property: ".$property->uri." RESTRICTED <br>";
 //				echo "=== ".$property->get("-owl:onProperty")->get("-rdfs:subClassOf")->uri."<br>";
 				
 				
@@ -477,13 +481,13 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 				//this way we can later discriminated from which ontology object we are going to evaluate our restrictions		
 				}
 			} else {
-//				echo "property: ".$property->uri." NOT RESTRICTED <br>";
+				echo "property: ".$property->uri." NOT RESTRICTED <br>";
 			}
 		}
 			
 	}
 
-//exit ;
+exit ;
 	
 	return array('posiblerels_complete'=>$posiblerels_complete,'posiblerels_asformoptions'=>$posiblerels_asformoptions);
 }
