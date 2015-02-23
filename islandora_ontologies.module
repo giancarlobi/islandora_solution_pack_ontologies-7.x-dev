@@ -17,7 +17,7 @@ function islandora_ontologies_menu() {
     'access arguments' => array(FEDORA_METADATA_EDIT),
     'type' => MENU_LOCAL_TASK,
   );*/
-   $items['islandora/object/%islandora_object/parsedontology'] = array(
+     $items['islandora/object/%islandora_object/parsedontology'] = array(
        'weight' => 4,
        'title' => t('Class Objects'),
 	   'description' => t('Manage Class association to Class object'),
@@ -28,6 +28,21 @@ function islandora_ontologies_menu() {
        'access callback' => 'islandora_ontologies_access',
        'access arguments' => array(2),
      );
+	 
+     $items['islandora/object/%islandora_object/parseclass'] = array(
+       'weight' => 4,
+       'title' => t('Assign Model'),
+	   'description' => t('Manage Class association to Model object'),
+	   'file' => 'includes/manage_classes.inc',
+	   'page callback' => 'drupal_get_form',
+       'page arguments' => array('islandora_ontologies_parsed_class_view_form',2),
+       'type' => MENU_LOCAL_TASK,
+       'access callback' => 'islandora_ontologies_class_access',
+       'access arguments' => array(2),
+     );	 
+	 
+	 
+	 
      $items['islandora/object/%islandora_object/manage/object/editontology'] = array(
       'title' => 'Update Ontology Stream',
       'page callback' => 'drupal_get_form',
@@ -97,6 +112,18 @@ function islandora_ontologies_access($islandora_object) {
   }
   return FALSE;
 }
+
+function islandora_ontologies_class_access($islandora_object) {
+  if (!isset($islandora_object)) {
+    return FALSE;
+  }
+  $models = $islandora_object->models;
+  if (array_intersect(array('ontologies:classCModel'), $models)) {
+    return islandora_object_access(ISLANDORA_MANAGE_PROPERTIES, $islandora_object);
+  }
+  return FALSE;
+}
+
 function islandora_ontologies_relate_access($islandora_object) {
   if (!isset($islandora_object)) {
     return FALSE;
