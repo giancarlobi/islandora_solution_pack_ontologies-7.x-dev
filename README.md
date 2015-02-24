@@ -12,7 +12,7 @@ Modify relationships edit form
 
 
 RESTRICTION in OWL Ontology
----------------------------
+------------------------------
 
 SUBJECT : PROPERTY : OBJECT
 
@@ -22,16 +22,13 @@ SUBJECT : PROPERTY : OBJECT
 
 - owl:Restriction (class based) the only one applied
 
-- if Property P NOT present in a <owl:Restriction> tag then  ANY : P : ANY 
+- if Property P NOT present in a 'owl:Restriction' tag then  ANY : P : ANY 
 
-- if <owl:Class A>
-       <rdfs:subClassOf>
-         <owl:Restriction>
-           <owl:onProperty P />
-           <owl:allValuesFrom B />
-         </owl:Restriction>
-       </rdfs:subClassOf>
-     </owl:Class>
+- if owl:Class A
+       rdfs:subClassOf
+         owl:Restriction
+           owl:onProperty P
+           owl:allValuesFrom B
 
   then
  		A : P : B
