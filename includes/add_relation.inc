@@ -13,21 +13,22 @@ function islandora_ontologies_add_relationships_form(array $form, array &$form_s
 		drupal_not_found();
 		exit;	
 	}	  
-	$islandora_object_pid = $islandora_object->id;
-				
+	$islandora_object_pid = $islandora_object->id;		
 	//We don´t want to reprocess every bit every time we re-render or sumbit the form. So store the processed ontology values on form_state		
 	$select_field="";
+
 	if (!isset($form_state['islandora_ontologies']))
 	{
-
-	
+		
 		$restrictionsOnOntologies=array();
 		$posible_relastionships=array();
 		$currentrelationsfiltered=array();
 		$options_subjectCmodel=array();
-		$currentontologies= islandora_ontologies_get_associated_ontologies($islandora_object);//@see utilities.inc
+		$currentontologies= islandora_ontologies_get_associated_ontologies($islandora_object);//@see utilities.inc **OK**
 		$currentrelations=islandora_ontologies_get_current_localrelations($islandora_object_pid);//@see utilities.inc
-		
+
+/* TODO: if NULL $currentontologies => warning without model-Class association rels are not permited */
+
 		foreach($currentontologies as $subject=>$ontologies)
 		{
 		
@@ -36,17 +37,28 @@ function islandora_ontologies_add_relationships_form(array $form, array &$form_s
 	
 			$posible_relastionships[$subject]=islandora_ontologies_get_possible_localrelations($subject,$ontologies);
 
-print_r($posible_relastionships[$subject]);
-exit;
+
 			
 			$currentrelationsfiltered[$subject]=islandora_ontologies_filter_existing_relations($subject,$ontologies,$currentrelations);	
-			foreach($ontologies as $ontology_objectpid=>$label)
-			{
-				$restrictionsOnOntologies[$subject][$ontology_objectpid]=islandora_ontologies_get_restricted_properties($ontology_objectpid,$subject,$currentrelationsfiltered[$subject][$ontology_objectpid]);
+
+
+			foreach($ontologies as $class_PID=>$class_label) {
+				
+				$ontology_objectpid=islandora_ontologies_get_ontology_for_class($class_PID);
+								
+				$restrictionsOnOntologies[$subject][$ontology_objectpid][$class_label]=islandora_ontologies_get_restricted_properties($ontology_objectpid,$class_label,$currentrelationsfiltered[$subject][$ontology_objectpid]);
 			}
+
+
+//print_r($restrictionsOnOntologies);
+//exit;
 			
 			$value_subjectCmodel=$subject;//Lets set any as default
 		}
+
+		
+//exit;	
+
 		
 		$options_subjectCmodel_tmp=array_keys($currentontologies);
 		if (sizeof($options_subjectCmodel_tmp)>0)
@@ -59,8 +71,11 @@ exit;
 		$form_state['islandora_ontologies']['options_subjectcmodel']=$options_subjectCmodel;
 	}
 
+print_r($restrictionsOnOntologies);
+//exit;
+
 	$value_relationship=!empty($form_state['values']['relationship']) ? $form_state['values']['relationship'] : "";	
-	$value_subjectCmodel=!empty($form_state['values']['subjectCmodel_select']) ? $form_state['values']['subjectCmodel_select']:"";
+	$value_subjectCmodel=!empty($form_state['values']['subjectCmodel_select']) ? $form_state['values']['subjectCmodel_select'] : "";
 	
 	$form = array();
 	$form['this'] = array(
@@ -82,7 +97,8 @@ exit;
 		'#default_value'=> $value_subjectCmodel,
 	);
 
-	if (sizeof($form_state['islandora_ontologies']['posible_relations'])>0)  //means we have more than one CMODEL as subject, so me must deal with restrictions based on that...
+	if (sizeof($form_state['islandora_ontologies']['posible_relations'])>0)  
+	//means we have more than one CMODEL as subject, so me must deal with restrictions based on that...
 	{
 		$form['subject']['subjectCmodel_select'] = array(
 			'#type' => 'select',
@@ -96,7 +112,7 @@ exit;
 				'callback' => 'relationship_subject_ajax_callback',//I woud really love ajax callbacks could use parameters... 
 			),
 		);	
-	}
+	
 	$form['rels'] = array(
 		'#type' => 'fieldset',
 		'#title' => 'Relationship',
@@ -194,7 +210,7 @@ exit;
 					'#type' => 'submit',
 					'#value' => t('submit'),
 				);
- 
+				}
 				return $form;
 
 			}
@@ -277,8 +293,11 @@ exit;
 			}
 			function textfield_autocomplete_value($value_relationship,$restrictionson_properties,$subject) {
 				$autocomplete_target='islandora/relationships/autocomplete/target/';
+////$autocomplete_target=$autocomplete_target."islandora:sp_large_image_cmodel"."/2";
+
 				if (!empty($value_relationship)) {
 					list($ontology,$property)=explode(" ",$value_relationship);
+
 					if ($restrictionson_properties[$subject][$ontology][$property]['onClass'])
 					{
 						$autocomplete_target=$autocomplete_target.str_replace("info:fedora/","",$restrictionson_properties[$subject][$ontology][$property]['onClass'])."/";
@@ -288,6 +307,8 @@ exit;
 						$autocomplete_target=$autocomplete_target."//";	
 					}  	
 				}
+
+
 				return $autocomplete_target;
 			}
 
@@ -323,7 +344,8 @@ exit;
 
 			function islandora_ontologies_add_relationships_form_submit($form, &$form_state) {
 	
-				$subject = islandora_object_load($form_state['values']['this']);//Subject in the sense of the actual relation. We used subject before what in the meaning of subject(class) in the ontologi
+				$subject = islandora_object_load($form_state['values']['this']);
+				//Subject in the sense of the actual relation. We used subject before what in the meaning of subject(class) in the ontologi
 				$possible_relations=$form_state['islandora_ontologies']['posible_relations'];
 				$current_relations=$form_state['islandora_ontologies']['current'];
  
@@ -348,7 +370,8 @@ exit;
  
 				$rel_ns = $possible_relations[$subjectCMODEL]['posiblerels_complete'][$ontology][$property]['ns'];
 				$rel_name =  $possible_relations[$subjectCMODEL]['posiblerels_complete'][$ontology][$property]['proplocal'];
-	            if (isset($possible_relations[$subjectCMODEL]['posiblerels_complete'][$ontology][$property]['inverse']))//we also have an inverse. Just add, that´s the reason they are defined!
+	            if (isset($possible_relations[$subjectCMODEL]['posiblerels_complete'][$ontology][$property]['inverse']))
+	            //we also have an inverse. Just add, that´s the reason they are defined!
 					{
 					if (is_array($possible_relations[$subjectCMODEL]['posiblerels_complete'][$ontology][$property]['inverse'])>0)	
 						{
