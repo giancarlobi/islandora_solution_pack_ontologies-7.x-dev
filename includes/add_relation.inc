@@ -2,9 +2,13 @@
 
 function islandora_ontologies_add_relationships_form(array $form, array &$form_state, $islandora_object) {
 	module_load_include('inc', 'islandora_ontologies', 'includes/utilities');
-	form_load_include($form_state, 'inc', 'islandora_ontologies', 'includes/add_relation');//Needed because we have to ways of calling this form and inside the wrapper function islandora_ontologies_manage_relations the link to the embeded and needed functions in this file get`s lost.
-	islandora_ontologies_get_all_for_cmodel('biodiversity:OccurrenceCModel');
+	form_load_include($form_state, 'inc', 'islandora_ontologies', 'includes/add_relation');
+	//Needed because we have to ways of calling this form and inside the wrapper function 
+	//islandora_ontologies_manage_relations the link to the embeded and needed functions in this file get`s lost.
 	
+	// why ?
+	//islandora_ontologies_get_all_for_cmodel('biodiversity:OccurrenceCModel');
+	//***************************
 	
 	
 	if (!$islandora_object)
@@ -14,7 +18,8 @@ function islandora_ontologies_add_relationships_form(array $form, array &$form_s
 		exit;	
 	}	  
 	$islandora_object_pid = $islandora_object->id;		
-	//We don´t want to reprocess every bit every time we re-render or sumbit the form. So store the processed ontology values on form_state		
+	//We don´t want to reprocess every bit every time we re-render or sumbit the form. 
+	//So store the processed ontology values on form_state		
 	$select_field="";
 
 	if (!isset($form_state['islandora_ontologies']))
@@ -24,41 +29,100 @@ function islandora_ontologies_add_relationships_form(array $form, array &$form_s
 		$posible_relastionships=array();
 		$currentrelationsfiltered=array();
 		$options_subjectCmodel=array();
-		$currentontologies= islandora_ontologies_get_associated_ontologies($islandora_object);//@see utilities.inc **OK**
-		$currentrelations=islandora_ontologies_get_current_localrelations($islandora_object_pid);//@see utilities.inc
+		$currentontologies=array();
 
+		$currentontologies= islandora_ontologies_get_associated_ontologies($islandora_object);//@see utilities.inc
+		//$currentontologies = for each model assigned to object list all model-class associations (class object PID + label)
+		//Array ( [islandora:sp_large_image_cmodel] => 
+		//	Array ( 	[ontologies:23] => http://aims.fao.org/aos/v1.0/c_image 
+		//              [ontologies:27] => info:fedora/biodiversity:OccurrenceCModel 
+		//				[ontologies:22] => http://aims.fao.org/aos/v1.0/c_noun ) )
+				
+		
+		$currentrelations=islandora_ontologies_get_current_localrelations($islandora_object_pid);//@see utilities.inc
+		//$currentrelations = all existing relationships with the object as subject
+		//Array ( 	[2] => 
+		//				Array ( [predicate] => 
+		//							Array ( [value] => hasPathogen [alias] => [namespace] => http://aims.fao.org/aos/v1.0/ ) 
+		//						[object] => 
+		//							Array ( [literal] => [value] => I-TO0762:9 ) ) 
+		//			[3] => 
+		//				Array ( [predicate] => 
+		//							Array ( [value] => correspondsTo [alias] => [namespace] => http://aims.fao.org/aos/v1.0/ ) 
+		//						[object] => 
+		//							Array ( [literal] => [value] => A-TO0762:2 ) ) 
+		//			[4] => 
+		//				Array ( [predicate] => 
+		//							Array ( [value] => hasPathogen [alias] => [namespace] => http://aims.fao.org/aos/v1.0/ ) 
+		//						[object] => 
+		//							Array ( [literal] => [value] => I-TO0762:22 ) ) 
+		//			[5] => 
+		//				Array ( [predicate] => 
+		//							Array ( [value] => hasPathogen [alias] => [namespace] => http://aims.fao.org/aos/v1.0/ ) 
+		//						[object] => 
+		//							Array ( [literal] => [value] => I-TO0762:8 ) ) ) 
+				
 /* TODO: if NULL $currentontologies => warning without model-Class association rels are not permited */
 
+
+		//parse each model assigned to object ($subject) 
 		foreach($currentontologies as $subject=>$ontologies)
 		{
 		
-// $subject: islandora:sp_large_image_cmodel 
-// $ontologies: Array ( [ontologies:3] => http://aims.fao.org/aos/v1.0/c_noun ) 			
-	
-			$posible_relastionships[$subject]=islandora_ontologies_get_possible_localrelations($subject,$ontologies);
+			// $subject: islandora:sp_large_image_cmodel 
+			// $ontologies:
+			//	Array ( 	[ontologies:23] => http://aims.fao.org/aos/v1.0/c_image 
+			//              [ontologies:27] => info:fedora/biodiversity:OccurrenceCModel 
+			//				[ontologies:22] => http://aims.fao.org/aos/v1.0/c_noun ) )			
 
-
+//			$posible_relastionships[$subject]=islandora_ontologies_get_possible_localrelations($subject,$ontologies);
+			// all relationships without restriction
+			
 			
 			$currentrelationsfiltered[$subject]=islandora_ontologies_filter_existing_relations($subject,$ontologies,$currentrelations);	
+			// only current relations included in object ontologies
 
 
+			// parse each model-class ($ontologies) assigned to object model ($subject)
 			foreach($ontologies as $class_PID=>$class_label) {
 				
 				$ontology_objectpid=islandora_ontologies_get_ontology_for_class($class_PID);
-								
+
+				$posible_relastionships[$subject][$class_PID]=islandora_ontologies_get_possible_localrelations_bymodelclass($subject,$class_PID,$class_label);
+
 				$restrictionsOnOntologies[$subject][$ontology_objectpid][$class_label]=islandora_ontologies_get_restricted_properties($ontology_objectpid,$class_label,$currentrelationsfiltered[$subject][$ontology_objectpid]);
 			}
 
 
-//print_r($restrictionsOnOntologies);
-//exit;
-			
+//print_r($posible_relastionships); exit;
+/*
+ * $restrictionsOnproperties=
+
+Array ( [islandora:sp_large_image_cmodel] => Array ( 
+
+	[ontologies:1] => Array ( 
+
+		[http://aims.fao.org/aos/v1.0/c_image] => Array ( 
+		
+		) 
+
+		[http://aims.fao.org/aos/v1.0/c_noun] => Array ( 
+			[http://aims.fao.org/aos/v1.0/hasImage] => Array ( 
+				[msg] => Array ( [0] => Cardinality on http://aims.fao.org/aos/v1.0/hasImage complaint with ontology ) 
+				[onClass] => http://aims.fao.org/aos/v1.0/c_image 
+				[inverse] => Array ( [ns] => http://aims.fao.org/aos/v1.0/ [localname] => isImageOf ) 
+				[inversof] => http://aims.fao.org/aos/v1.0/isImageOf 
+				[allowsmore] => 1 
+				[ns] => http://aims.fao.org/aos/v1.0/ 
+				[localname] => hasImage 
+			) 
+		) 
+	) 
+
+*/
+		
 			$value_subjectCmodel=$subject;//Lets set any as default
 		}
-
-		
-//exit;	
-
 		
 		$options_subjectCmodel_tmp=array_keys($currentontologies);
 		if (sizeof($options_subjectCmodel_tmp)>0)
@@ -69,13 +133,12 @@ function islandora_ontologies_add_relationships_form(array $form, array &$form_s
 		$form_state['islandora_ontologies']['restrictions']=$restrictionsOnOntologies;
 		$form_state['islandora_ontologies']['posible_relations']=$posible_relastionships;
 		$form_state['islandora_ontologies']['options_subjectcmodel']=$options_subjectCmodel;
+		$form_state['islandora_ontologies']['current_ontologies']=$currentontologies;
 	}
-
-print_r($restrictionsOnOntologies);
-//exit;
 
 	$value_relationship=!empty($form_state['values']['relationship']) ? $form_state['values']['relationship'] : "";	
 	$value_subjectCmodel=!empty($form_state['values']['subjectCmodel_select']) ? $form_state['values']['subjectCmodel_select'] : "";
+	$value_subjectClass=!empty($form_state['values']['subjectClass']) ? $form_state['values']['subjectClass'] : "";
 	
 	$form = array();
 	$form['this'] = array(
@@ -112,6 +175,22 @@ print_r($restrictionsOnOntologies);
 				'callback' => 'relationship_subject_ajax_callback',//I woud really love ajax callbacks could use parameters... 
 			),
 		);	
+		
+		$form['subject']['subjectClass'] = array(
+		'#type' => 'select',
+		'#title' => t('Class for this Content Models'),
+		'#options' => select_class_values($value_subjectCmodel,$form_state['islandora_ontologies']['current_ontologies']),
+		'#required' => TRUE,
+		'#ajax' => array(
+			'method' => 'replace',
+			'effect' => 'fade',
+			'event' => 'change',
+			'callback' => 'class_subject_ajax_callback',//I woud really love ajax callbacks could use parameters... 
+		), 
+		'#prefix' => '<div id="class_select_replace">',
+		'#suffix' => '</div>',
+	);
+	
 	
 	$form['rels'] = array(
 		'#type' => 'fieldset',
@@ -123,7 +202,7 @@ print_r($restrictionsOnOntologies);
 	$form['rels']['relationship'] = array(
 		'#type' => 'select',
 		'#title' => t('Relationship'),
-		'#options' => select_relationsship_values($value_subjectCmodel,$form_state['islandora_ontologies']['posible_relations']),
+		'#options' => select_relationsship_values($value_subjectCmodel,$value_subjectClass,$form_state['islandora_ontologies']['posible_relations']),
 		'#required' => TRUE,
 		'#ajax' => array(
 			'method' => 'replace',
@@ -192,7 +271,7 @@ print_r($restrictionsOnOntologies);
 					'#type' => 'textfield',
 					'#title' => t('Target object'),
 					'#required' => TRUE,
-					'#autocomplete_path' => textfield_autocomplete_value($value_relationship,$form_state['islandora_ontologies']['restrictions'],$value_subjectCmodel),
+					'#autocomplete_path' => textfield_autocomplete_value($value_relationship,$form_state['islandora_ontologies']['restrictions'],$value_subjectCmodel,$form_state['islandora_ontologies']['current_ontologies']),
 					'#access'=>!empty($value_relationship),
 					//Autocomplete_path, must be dinamic added to allow only objects of restricted class for this property 
 				);
@@ -223,6 +302,33 @@ print_r($restrictionsOnOntologies);
 				{
 			 
 					$ajax['#commands']=array(
+						ajax_command_replace("#class_select_replace", render($form['subject']['subjectClass'])),
+//						ajax_command_replace("#relationship_replace", render($form['rels'])),
+						//ajax_command_replace("#fieldset_symm_replace", render($form['symmetric'])),
+//						ajax_command_replace("#fieldset_ns_replace", render($form['ns'])),
+//						ajax_command_replace("#fieldset_objtarget_replace", render($form['obj'])),
+						//ajax_command_invoke("#edit-obj",'show'),
+	
+					);
+				}
+				else
+				{
+					$ajax['#commands']=array(
+						ajax_command_replace("#class_select_replace", render($form['subject']['subjectClass'])),
+						ajax_command_replace("#fieldset_objtarget_replace", render($form['obj'])),
+						ajax_command_replace("#relationship_replace", render($form['rels'])),
+					);
+				}
+				return $ajax;
+			}
+
+			function class_subject_ajax_callback(&$form, $form_state) {
+				$ajax = array( '#type' => 'ajax', '#commands' =>'');
+ 
+				if (!empty($form_state['values']['subjectClass'])) 
+				{
+			 
+					$ajax['#commands']=array(
 						ajax_command_replace("#relationship_replace", render($form['rels'])),
 						//ajax_command_replace("#fieldset_symm_replace", render($form['symmetric'])),
 						ajax_command_replace("#fieldset_ns_replace", render($form['ns'])),
@@ -234,12 +340,24 @@ print_r($restrictionsOnOntologies);
 				else
 				{
 					$ajax['#commands']=array(
+						ajax_command_replace("#class_select_replace", render($form['subject']['subjectClass'])),
 						ajax_command_replace("#fieldset_objtarget_replace", render($form['obj'])),
 						ajax_command_replace("#relationship_replace", render($form['rels'])),
 					);
 				}
 				return $ajax;
 			}
+						
+			function select_class_values($value_subjectCmodel,$ontologies) {
+	
+				if (!empty($value_subjectCmodel)) {
+					$options=$ontologies[$value_subjectCmodel];
+  
+				}
+				return empty($options) ? array() : $options;
+			};
+			
+			
 			function relationship_ajax_callback(&$form, $form_state) {
 				$ajax = array( '#type' => 'ajax', '#commands' =>'');
   
@@ -265,11 +383,11 @@ print_r($restrictionsOnOntologies);
 				return $ajax;
 			}
 			
-			function select_relationsship_values($value_subjectCmodel,$possible_relations) {
+			function select_relationsship_values($value_subjectCmodel,$value_subjectClass,$possible_relations) {
 	
-				if (!empty($value_subjectCmodel)) {
-					$options=$possible_relations[$value_subjectCmodel]['posiblerels_asformoptions'];
-  
+				if (!empty($value_subjectClass)) {
+					$options=$possible_relations[$value_subjectCmodel][$value_subjectClass]['posiblerels_asformoptions'];
+
 				}
 				return empty($options) ? array() : $options;
 			};
@@ -291,7 +409,7 @@ print_r($restrictionsOnOntologies);
 				}
 				return empty($value_description) ? "No description" : $value_description;
 			}
-			function textfield_autocomplete_value($value_relationship,$restrictionson_properties,$subject) {
+			function textfield_autocomplete_value($value_relationship,$restrictionson_properties,$subject,$current_ontologies) {
 				$autocomplete_target='islandora/relationships/autocomplete/target/';
 ////$autocomplete_target=$autocomplete_target."islandora:sp_large_image_cmodel"."/2";
 
@@ -308,7 +426,7 @@ print_r($restrictionsOnOntologies);
 					}  	
 				}
 
-
+//$autocomplete_target='islandora/relationships/autocomplete/target/'."islandora:sp_large_image_cmodel"."/2";
 				return $autocomplete_target;
 			}
 

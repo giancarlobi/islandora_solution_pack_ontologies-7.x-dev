@@ -342,6 +342,10 @@ function islandora_ontologies_object_autocomplete($cmodel,$x2) {
       'fl' => array('fgs_label_s', 'PID'),
     );
     $query = "($qualifier) AND " . 'RELS_EXT_hasModel_uri_ms:"' . $cmodel . '"';
+
+echo $query; exit;
+
+
     $url = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr'));
     $solr = new Apache_Solr_Service($url['host'], $url['port'], $url['path'] . '/');
     $solr->setCreateDocuments(FALSE);

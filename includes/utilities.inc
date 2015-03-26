@@ -286,7 +286,8 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 }*/
 
 /**
-* This function gets all posible relations for a Subject based on their associated Ontologies
+* This function gets all posible relations for a Model($subject) based on associated Classes
+*  *** WITHOUT RESTRICTIONS ****
 *
 * @param array $subject_associated_ontologies_pids, subject + PIDs of the Classes
 *   The object to check for it´s content models and associated ontology objects.
@@ -294,6 +295,11 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 * @return Array 
 * An array with the the relations and preprocessed form options as plus.
 */
+// $subject: islandora:sp_large_image_cmodel 
+// $subject_associated_ontologies_pids:
+//	Array ( 	[ontologies:23] => http://aims.fao.org/aos/v1.0/c_image 
+//              [ontologies:27] => info:fedora/biodiversity:OccurrenceCModel 
+//				[ontologies:22] => http://aims.fao.org/aos/v1.0/c_noun ) )		
 function islandora_ontologies_get_possible_localrelations($subject,$subject_associated_ontologies_pids)
 {
 	$module_path = drupal_get_path('module', 'islandora_ontologies');
@@ -307,10 +313,12 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 	$uri_parts_inverse=array();
 	$inverse_array=array();
 	$inverseof_array=array();
+	
+	//parse each class associated to model
 	foreach($subject_associated_ontologies_pids as $class_PID=>$class_label)
 	{
 
-		// $class_PID and $class_label of Class object
+		// return PID of Ontology 
 		$PID=islandora_ontologies_get_ontology_for_class($class_PID);
 		
 		unset($ontology_object);
@@ -329,6 +337,10 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 
 
 		foreach($graph->allOfType('owl:ObjectProperty')->sort("rdfs:label") as $property) {
+
+
+
+
 			$inverse="";
 			$inverseof="";	
 			$inverse_array=array();
@@ -344,7 +356,9 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 
 				
 //			if (!$property->get("-owl:onProperty")->get("-rdfs:subClassOf")->isNull()) {
-			foreach($property->all("-owl:onProperty") as $prop) {
+//			foreach($property->all("-owl:onProperty") as $prop) {
+			if (TRUE) { //NO RESTRICTION
+
 			//Could be multiple, i the same property is used across mult. class restrictions. Fixes previous flase asumption!
 
 					//if ($prop->get("-rdfs:subClassOf")->uri == "info:fedora/".$subject) 
@@ -352,10 +366,11 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 					//If its a null node or inexistant it will give and GraphiteNull Object, no need to check for it.
 
 				//$classe_restricted = $property->get("-owl:onProperty")->get("-rdfs:subClassOf")->uri;
-				$classe_restricted = $prop->get("-rdfs:subClassOf")->uri;
-				
-				
-				if ($classe_restricted == $class_label)   {
+//				$classe_restricted = $prop->get("-rdfs:subClassOf")->uri;
+//				if ($classe_restricted == $class_label)   {
+					
+				if (TRUE) { //NO RESTRICTION
+					
 ///					echo "RESTRICTED <br>";
 				//We won´t deal with the nature of the restriction here. 
 				//We just wan´t a list of possible/defined/restricted properties for this particular class
@@ -428,9 +443,94 @@ function islandora_ontologies_get_possible_localrelations($subject,$subject_asso
 		}
 			
 	}
+
 	return array('posiblerels_complete'=>$posiblerels_complete,'posiblerels_asformoptions'=>$posiblerels_asformoptions);
 }
 
+
+/**
+* This function gets all posible relations for each Model($subject) - Class ($class_PID,$class_label) association
+*  *** WITHOUT RESTRICTIONS ****
+*
+*???? @param array $subject_associated_ontologies_pids, subject + PIDs of the Classes
+*   The object to check for it´s content models and associated ontology objects.
+* 1 Subject, multiple ontologies
+* @return Array 
+* An array with the the relations and preprocessed form options as plus.
+*/
+// $subject: islandora:sp_large_image_cmodel 
+// $class_PID [ontologies:23], $class_label http://aims.fao.org/aos/v1.0/c_image 
+	
+function islandora_ontologies_get_possible_localrelations_bymodelclass($subject,$class_PID,$class_label)
+{
+	$module_path = drupal_get_path('module', 'islandora_ontologies');
+	include_once($module_path.'/arc2/ARC2.php');
+	include_once($module_path.'/Graphite/Graphite.php');	
+	
+	
+	$posiblerels_complete=array();
+	$posiblerels_asformoptions=array();
+	$uri_parts_inverse=array();
+	$uri_parts_inverse=array();
+	$inverse_array=array();
+	$inverseof_array=array();
+	
+	// return PID of Ontology 
+	$PID=islandora_ontologies_get_ontology_for_class($class_PID);
+		
+	unset($ontology_object);
+	$ontology_object=islandora_object_load($PID);
+	if (!$ontology_object) {
+		drupal_set_message("Ontology object doesn't exist.");
+		drupal_not_found();
+		continue;
+	}	
+	$ontology_label=$ontology_object->label;
+		
+	$fedora_url = variable_get('islandora_base_url', 'http://localhost:8080/fedora');
+	$xmlfilelink = $fedora_url."/objects/".$PID."/datastreams/ONTOLOGY/content";
+	$graph = new Graphite();//@TODO Chek if it´s posible to combine all ontologies in one Graphite object and parse the whole thing 
+	$graph->load($xmlfilelink);
+
+
+	foreach($graph->allOfType('owl:ObjectProperty')->sort("rdfs:label") as $property) {
+
+		$inverse="";
+		$inverseof="";	
+		$inverse_array=array();
+		$inverseof_array=array();
+
+		$inverse=$property->get('-owl:inverseOf')->isNull() ? '' : $property->get('-owl:inverseOf')->uri;
+		$inverseof=$property->get('owl:inverseOf')->isNull() ? '' : $property->get('owl:inverseOf')->uri;
+
+		$uri_parts = ARC2::splitURI($property->uri);
+		if (!empty($inverse)) {
+			$uri_parts_inverse=ARC2::splitURI($inverse);
+			$inverse_array=array('ns'=>$uri_parts_inverse[0],'proplocal'=>$uri_parts_inverse[1]);	
+		}
+		if (!empty($inverseof)) {
+			$uri_parts_inverse=ARC2::splitURI($inverseof);
+			$inverseof_array=array('ns'=>$uri_parts_inverse[0],'proplocal'=>$uri_parts_inverse[1]);	
+		}
+		//echo "uri0: ".$uri_parts[0]."    uri1: ".$uri_parts[1]."<br>";
+					
+		$posiblerels_complete[$PID][$property->uri]=array(
+			'label'=> $property->label()->isNull() ? $uri_parts[1] : $property->label()->toString(),
+			//If we don´t have a label display the short value of the property
+			'inverse'=> sizeof($inverse_array)>0?$inverse_array:'',
+			'inverseof'=> sizeof($inverseof_array)>0?$inverseof_array:'',
+			'ns'=>$uri_parts[0],//Not entirely correct. If there are namespace alias, we must check this in the outerloop.
+			'comment'=>$property->getString('rdfs:comment'),
+			'proplocal'=>$uri_parts[1],	
+			'alias'=>'',//@todo read the complete namespace from the ontology and check for namespaces alias	
+		);
+		
+		$posiblerels_asformoptions[$ontology_label][$PID." ".$property->uri]=$posiblerels_complete[$PID][$property->uri]['label'];
+			
+	}
+
+	return array('posiblerels_complete'=>$posiblerels_complete,'posiblerels_asformoptions'=>$posiblerels_asformoptions);
+}
 
 
 
@@ -627,13 +727,69 @@ function islandora_ontologies_filter_existing_relations($subject, array $subject
 * This function gets restrictions for a Class ($subject)
 * Optional: if onClass and/or onProperty is given, it limits it return values to this matches
 * @param $ontology_objectpid. The pid of the object that contains the Ontology 
-* @param $subject. The Class that is being restricted (ContentmodelPID) with or without the info:fedora/ part
+* @param $subject. The Class that is being restricted (class_label)
 * @param $rels. Current Relations array for this object. We already discarded those properties who are not defined in this ontology. 
 *        If empty sould be of type array
 * @param $onClass. only those restrictions that apply to a givenClass (otherContentmodelPID) with or without the info:fedora/ part. Default Null
 * @param @onProperty. only those restrictions for a specific property. Full with ns.
 * @return $restrictionsOnproperties with the properties,onClass and cardinality/existence restrictions and some human readable messages
 */
+/**
+$restrictionsOnproperties=
+
+Array ( [islandora:sp_large_image_cmodel] => Array ( 
+
+	[ontologies:1] => Array ( 
+
+		[http://aims.fao.org/aos/v1.0/c_image] => Array ( 
+		
+		) 
+
+		[http://aims.fao.org/aos/v1.0/c_noun] => Array ( 
+			[http://aims.fao.org/aos/v1.0/hasImage] => Array ( 
+				[msg] => Array ( [0] => Cardinality on http://aims.fao.org/aos/v1.0/hasImage complaint with ontology ) 
+				[onClass] => http://aims.fao.org/aos/v1.0/c_image 
+				[inverse] => Array ( [ns] => http://aims.fao.org/aos/v1.0/ [localname] => isImageOf ) 
+				[inversof] => http://aims.fao.org/aos/v1.0/isImageOf 
+				[allowsmore] => 1 
+				[ns] => http://aims.fao.org/aos/v1.0/ 
+				[localname] => hasImage 
+			) 
+		) 
+	) 
+
+	
+	
+	
+	[ontologies:2] => Array ( 
+		[info:fedora/biodiversity:OccurrenceCModel] => Array ( 
+			[http://www.semanticweb.org/dpino/ontologies/2014/3/untitled-ontology-3#related_toLocation] => Array ( 
+				[msg] => Array ( [0] => Cardinality on http://www.semanticweb.org/dpino/ontologies/2014/3/untitled-ontology-3#related_toLocation complaint with ontology ) 
+				[onClass] => info:fedora/biodiversity:LocationCModel 
+				[inverse] => 
+				[inversof] => 
+				[allowsmore] => 1 
+				[ns] => http://www.semanticweb.org/dpino/ontologies/2014/3/untitled-ontology-3# 
+				[localname] => related_toLocation 
+			) 
+			[http://www.semanticweb.org/dpino/ontologies/2014/3/untitled-ontology-3#atEvent] => Array ( 
+				[msg] => Array ( [0] => Cardinality on http://www.semanticweb.org/dpino/ontologies/2014/3/untitled-ontology-3#atEvent complaint with ontology ) 
+				[onClass] => info:fedora/biodiversity:EventCModel 
+				[inverse] => Array ( [ns] => http://www.semanticweb.org/dpino/ontologies/2014/3/untitled-ontology-3# [localname] => eventOf ) 
+				[inversof] => 
+				[allowsmore] => 1 
+				[ns] => http://www.semanticweb.org/dpino/ontologies/2014/3/untitled-ontology-3# 
+				[localname] => atEvent 
+			) 
+ */
+
+
+
+
+
+
+
+
 function islandora_ontologies_get_restricted_properties($ontology_objectpid,$subject,$rels,$onClass=NULL,$onProperty=NULL) {
 
 //echo "=========".$ontology_objectpid."<BR>";
@@ -1155,7 +1311,8 @@ function islandora_ontologies_get_all_for_cmodel($contentmodelpid)
 			}	
 		if ($contentmodel_object)	
 			{
-			$associated_ontologies=islandora_ontologies_get_associated_ontologies_for_cmodel($contentmodel_object);//returns $associated_ontology[$ontology_object->id]=$ontology_object->label;
+			$associated_ontologies=islandora_ontologies_get_associated_ontologies_for_cmodel($contentmodel_object);
+			//returns $associated_ontology[$ontology_object->id]=$ontology_object->label;
 			if (sizeof($associated_ontologies)>0)
 				{
 				foreach($associated_ontologies as $pid =>$label)
@@ -1736,7 +1893,7 @@ class islandora_ontologies_adjacency_graph
 
 
 /**
-* This function returns Ontology of a Class Object
+* This function returns PID Ontology of a Class Object
 * @param string $class_pid, the PID of the Class Object
 * @return string $ontology_pid, the PID of the Ontology
 */
