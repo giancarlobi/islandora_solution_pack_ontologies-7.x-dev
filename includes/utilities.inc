@@ -1916,4 +1916,5 @@ function islandora_ontologies_get_ontology_for_class($class_pid)
 	return $ontology_pid;
 }
 
-	
+
+

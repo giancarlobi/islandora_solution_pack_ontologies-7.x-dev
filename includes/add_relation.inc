@@ -90,7 +90,7 @@ function islandora_ontologies_add_relationships_form(array $form, array &$form_s
 
 				$posible_relastionships[$subject][$class_PID]=islandora_ontologies_get_possible_localrelations_bymodelclass($subject,$class_PID,$class_label);
 
-				$restrictionsOnOntologies[$subject][$ontology_objectpid][$class_label]=islandora_ontologies_get_restricted_properties($ontology_objectpid,$class_label,$currentrelationsfiltered[$subject][$ontology_objectpid]);
+				$restrictionsOnOntologies[$subject][$ontology_objectpid][$class_PID]=islandora_ontologies_get_restricted_properties($ontology_objectpid,$class_label,$currentrelationsfiltered[$subject][$ontology_objectpid]);
 			}
 
 
@@ -216,7 +216,7 @@ Array ( [islandora:sp_large_image_cmodel] => Array (
 	
 
 	$form['rels']['description'] = array(
-		'#markup' => textfield_description_value($value_relationship,$form_state['islandora_ontologies']['posible_relations'],$value_subjectCmodel),
+		'#markup' => textfield_description_value($value_relationship,$value_subjectCmodel,$value_subjectClass,$form_state['islandora_ontologies']['posible_relations']),
 		'#prefix' => '<div id="textfield_description_replace">',
 		'#suffix' => '</div>',
 	);
@@ -232,7 +232,7 @@ Array ( [islandora:sp_large_image_cmodel] => Array (
 		'#type' => 'textfield',
 		'#title' => t('Namespace'),
 		'#disabled' => TRUE,
-		'#value' => textfield_namespace_value($value_relationship,$form_state['islandora_ontologies']['posible_relations'],$value_subjectCmodel),
+		'#value' => textfield_namespace_value($value_relationship,$value_subjectCmodel,$value_subjectClass,$form_state['islandora_ontologies']['posible_relations']),
 	);
 
 	/*$form['ns']['curr_alias'] = array(
@@ -271,7 +271,7 @@ Array ( [islandora:sp_large_image_cmodel] => Array (
 					'#type' => 'textfield',
 					'#title' => t('Target object'),
 					'#required' => TRUE,
-					'#autocomplete_path' => textfield_autocomplete_value($value_relationship,$form_state['islandora_ontologies']['restrictions'],$value_subjectCmodel,$form_state['islandora_ontologies']['current_ontologies']),
+					'#autocomplete_path' => textfield_autocomplete_value($value_relationship,$form_state['islandora_ontologies']['restrictions'],$value_subjectCmodel,$value_subjectClass),
 					'#access'=>!empty($value_relationship),
 					//Autocomplete_path, must be dinamic added to allow only objects of restricted class for this property 
 				);
@@ -392,41 +392,48 @@ Array ( [islandora:sp_large_image_cmodel] => Array (
 				return empty($options) ? array() : $options;
 			};
 
-			function textfield_namespace_value($value_relationship,$possible_relations,$subject) {
+			function textfield_namespace_value($value_relationship,$value_subjectCmodel,$value_subjectClass,$possible_relations) {
 				if (!empty($value_relationship)) {
 					list($ontology,$property)=explode(" ",$value_relationship);
 					//dpm($possible_relations[$subject]['posiblerels_complete']);
-					$value_ns = $possible_relations[$subject]['posiblerels_complete'][$ontology][$property]['ns'];
+					$value_ns = $possible_relations[$value_subjectCmodel][$value_subjectClass]['posiblerels_complete'][$ontology][$property]['ns'];
 				}
 				return empty($value_ns) ? "No namespace" : $value_ns;
 			};
 
-			function textfield_description_value($value_relationship,$possible_relations,$subject) {
+			function textfield_description_value($value_relationship,$value_subjectCmodel,$value_subjectClass,$possible_relations) {
   
 				if (!empty($value_relationship)) {
 					list($ontology,$property)=explode(" ",$value_relationship);
-					$value_description=$possible_relations[$subject]['posiblerels_complete'][$ontology][$property]['comment'];
+					$value_description=$possible_relations[$value_subjectCmodel][$value_subjectClass]['posiblerels_complete'][$ontology][$property]['comment'];
 				}
 				return empty($value_description) ? "No description" : $value_description;
 			}
-			function textfield_autocomplete_value($value_relationship,$restrictionson_properties,$subject,$current_ontologies) {
+			function textfield_autocomplete_value($value_relationship,$restrictionson_properties,$subject,$value_subjectClass) {
 				$autocomplete_target='islandora/relationships/autocomplete/target/';
 ////$autocomplete_target=$autocomplete_target."islandora:sp_large_image_cmodel"."/2";
+
+
+
 
 				if (!empty($value_relationship)) {
 					list($ontology,$property)=explode(" ",$value_relationship);
 
-					if ($restrictionson_properties[$subject][$ontology][$property]['onClass'])
+//echo $subject."<br>".$ontology."<br>".$value_subjectClass."<br>".$property."<br>"; exit;
+
+					if ($restrictionson_properties[$subject][$ontology][$value_subjectClass][$property]['onClass']) //= class_label !!!!
 					{
-						$autocomplete_target=$autocomplete_target.str_replace("info:fedora/","",$restrictionson_properties[$subject][$ontology][$property]['onClass'])."/";
+//						$autocomplete_target=$autocomplete_target.str_replace("info:fedora/","",$restrictionson_properties[$subject][$ontology][$value_subjectClass][$property]['onClass'])."/".$ontology."/";
+						$autocomplete_target=$autocomplete_target.urlencode($restrictionson_properties[$subject][$ontology][$value_subjectClass][$property]['onClass'])."/".$ontology."/";
+
 					}
 					else
 					{
-						$autocomplete_target=$autocomplete_target."//";	
+						$autocomplete_target=$autocomplete_target."/".$ontology."/";	
 					}  	
 				}
 
-//$autocomplete_target='islandora/relationships/autocomplete/target/'."islandora:sp_large_image_cmodel"."/2";
+//$autocomplete_target='islandora/relationships/autocomplete/target/'."islandora:sp_large_image_cmodel"."/".$ontology;
 				return $autocomplete_target;
 			}
 

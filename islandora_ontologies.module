@@ -325,12 +325,59 @@ function islandora_ontologies_ontologies_ontologyCModel_islandora_object_ingeste
 
 
 
-function islandora_ontologies_object_autocomplete($cmodel,$x2) {
- 
-    
-	//first check if cmodel exists.
-	//if not avoid Rels ext part
-	//$cmodel="biodiversity:TaxonCModel";	
+function islandora_ontologies_object_autocomplete($clabel,$ontology) { //$clabel = class_label OR empty
+
+// if $clabel empty: each model assigned to each ontology class
+// if $clabel: each model assigned to this class
+ 	
+ 	$class_label=urldecode($clabel);
+ 	$classes=islandora_ontology_object_get_allclasses($ontology);
+
+/* $classes:
+[http://aims.fao.org/aos/v1.0/c_noun] => ontologies:22
+[http://aims.fao.org/aos/v1.0/c_image] => ontologies:23
+[http://aims.fao.org/aos/v1.0/c_category] => ontologies:24
+[http://aims.fao.org/aos/v1.0/c_definition] => ontologies:25
+[http://aims.fao.org/aos/v1.0/c_domain_concept] => ontologies:26
+*/
+
+
+
+
+// Find cmodels associated to class/classes
+if ($class_label){
+	$class_models = islandora_ontology_object_get_allmodels($classes[$class_label]);
+}
+else {
+	
+	$class_models = array();
+	foreach ($classes as $class_label => $class_pid) {
+		$class_models = array_merge($class_models , islandora_ontology_object_get_allmodels($class_pid));
+
+	}
+	
+}
+/*
+$class_models: Array
+(
+[Islandora Large Image Content Model] => islandora:sp_large_image_cmodel
+[Islandora Internet Archive Book Content Model] => islandora:bookCModel
+)
+
+if $class_models empty => no model available for relationships !
+*/
+
+	if (empty($class_models)){
+		$models_query =" AND " . 'RELS_EXT_hasModel_uri_ms:"islandora:dummycmodel"';
+	} else {
+		$models_query = " AND (";
+		foreach ($class_models as $model_label => $model_pid) {
+			$models_query .= 'RELS_EXT_hasModel_uri_ms:"' . $model_pid . '" OR ';
+		}
+		$models_query = rtrim($models_query," OR ");
+		$models_query .= ")";
+	}
+	
 	$json=array();
     if (isset($_GET['q'])) {
       $stub = end(explode('/', $_GET['q']));
@@ -341,9 +388,10 @@ function islandora_ontologies_object_autocomplete($cmodel,$x2) {
     $params = array(
       'fl' => array('fgs_label_s', 'PID'),
     );
-    $query = "($qualifier) AND " . 'RELS_EXT_hasModel_uri_ms:"' . $cmodel . '"';
+//    $query = "($qualifier) AND " . 'RELS_EXT_hasModel_uri_ms:"' . $ontology . '"';
+	$query = "($qualifier)" . $models_query;
 
-echo $query; exit;
+//echo $query; exit;
 
 
     $url = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr'));
@@ -362,12 +410,85 @@ echo $query; exit;
         $list[$choice['PID']] = $choice['fgs_label_s'];
       }
     }
-    //$list[$cmodel]=$cmodel;
-	//$list[$x2]=$x2;
+    
+//print_r($list); exit;
+
+
     drupal_json_output($list);
   }
   
 
+/**
+* Return an array of pids that are classes of a ontology object.
+*/
+function islandora_ontology_object_get_allclasses($pid) {
+//  $rels_predicate = variable_get('islandora_compound_object_relationship', 'isConstituentOf');
+	$rels_predicate = 'isConstituentOf';
+
+  $objects = array();
+
+  $connection = islandora_get_tuque_connection();
+  $escaped_pid = str_replace(':', '_', $pid);
+  if ($connection) {
+    $query = <<<EOQ
+PREFIX islandora-rels-ext: <http://islandora.ca/ontology/relsext#>
+SELECT ?object ?title
+FROM <#ri>
+WHERE {
+  ?object <fedora-model:label> ?title ;
+          <fedora-rels-ext:$rels_predicate> <info:fedora/$pid> .
+
+}
+EOQ;
+    $results = $connection->repository->ri->sparqlQuery($query);
+
+    foreach ($results as $result) {
+      $object = islandora_object_load($result['object']['value']);
+      if (islandora_object_access(ISLANDORA_VIEW_OBJECTS, $object)) {
+        $objects[$result['title']['value']] = $result['object']['value'];
+      }
+    }
+  }
+
+  return $objects;
+}
+	
+
+/**
+* Return an array of pids that are models associated to a class.
+*/
+function islandora_ontology_object_get_allmodels($pid) {
+//  $rels_predicate = variable_get('islandora_compound_object_relationship', 'isConstituentOf');
+	$rels_predicate = 'isMemberOf';
+
+  $objects = array();
+
+  $connection = islandora_get_tuque_connection();
+  $escaped_pid = str_replace(':', '_', $pid);
+  if ($connection) {
+    $query = <<<EOQ
+PREFIX islandora-rels-ext: <http://islandora.ca/ontology/relsext#>
+SELECT ?object ?title
+FROM <#ri>
+WHERE {
+  ?object <fedora-model:label> ?title ;
+          <fedora-rels-ext:$rels_predicate> <info:fedora/$pid> .
+
+}
+EOQ;
+    $results = $connection->repository->ri->sparqlQuery($query);
+
+    foreach ($results as $result) {
+      $object = islandora_object_load($result['object']['value']);
+      if (islandora_object_access(ISLANDORA_VIEW_OBJECTS, $object)) {
+        $objects[$result['title']['value']] = $result['object']['value'];
+      }
+    }
+  }
+
+  return $objects;
+}
+	
 
 
 /** 
