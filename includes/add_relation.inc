@@ -64,7 +64,6 @@ function islandora_ontologies_add_relationships_form(array $form, array &$form_s
 				
 /* TODO: if NULL $currentontologies => warning without model-Class association rels are not permited */
 
-
 		//parse each model assigned to object ($subject) 
 		foreach($currentontologies as $subject=>$ontologies)
 		{

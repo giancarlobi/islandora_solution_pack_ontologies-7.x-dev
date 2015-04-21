@@ -62,12 +62,13 @@ function islandora_ontologies_mapowlclasses_to_cmodels(AbstractObject $islandora
 /** 
  * Gets delete menu path for a relationship
  */
-function islandora_ontologies_get_delete_path($objectPid, $namespace, $relationship, $targetPid) {
+function islandora_ontologies_get_delete_path($objectPid, $namespace, $relationship, $targetPid, $inamespace, $irelationship) {
   $namespace = $namespace ? $namespace : 'NULL';
   $relationship = $relationship ? $relationship : 'NULL';
   $targetPid = $targetPid ? $targetPid : 'NULL';
-
-  return 'islandora/object/' . $objectPid . '/manage/relationships/delete/' . $namespace . '/' . $relationship . '/' . $targetPid;
+  $inamespace = $inamespace ? $inamespace : 'NULL';
+  $irelationship = $irelationship ? $irelationship : 'NULL';
+  return 'islandora/object/' . $objectPid . '/manage/relationships/delete/' . $namespace . '/' . $relationship . '/' . $targetPid. '/' . $inamespace . '/' . $irelationship;
 }
 
 
@@ -188,8 +189,8 @@ function islandora_ontologies_get_current_localrelations($subject_pid)
 	}
 	$not_system_rels= function($rel) 
 	{
-		//Filter out info:fedora/fedora-system:def/model
-		if (strpos($rel['predicate']['namespace'], 'info:fedora/fedora-system:def/')===FALSE)
+		//Filter out info:fedora/fedora-system:def/model AND http://islandora.ca/ontology/relsext#
+		if ((strpos($rel['predicate']['namespace'], 'info:fedora/fedora-system:def/')===FALSE) AND (strpos($rel['predicate']['namespace'], 'islandora.ca/ontology/relsext')===FALSE))
 			{
 			return TRUE;
 			}	

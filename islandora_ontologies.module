@@ -66,12 +66,12 @@ function islandora_ontologies_menu() {
     'access arguments' => array(2),
     'type' => MENU_LOCAL_ACTION,
   );
-  $items['islandora/object/%islandora_object/manage/relationships/delete/%/%/%'] = array(
+  $items['islandora/object/%islandora_object/manage/relationships/delete/%/%/%/%/%'] = array(
     'title' => t('Delete relationship'),
     'description' => t('Delete a relationship'),
     'file' => 'includes/del_relation.inc',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('islandora_ontologies_delete_relationships', 2, 6, 7, 8),
+    'page arguments' => array('islandora_ontologies_delete_relationships', 2, 6, 7, 8, 9, 10),
     'access callback' => 'islandora_ontologies_relate_access_mod',
     'access arguments' => array(2),
     'type' => MENU_CALLBACK,
